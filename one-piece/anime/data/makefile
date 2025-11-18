@@ -1,18 +1,19 @@
 BINARY_NAME := op-anime-dl
 
 # Directories and paths
-BIN_DIR := ./bin
+BIN_DIR     := ./bin
 INSTALL_DIR := /usr/local/bin
-SERVICE_FILE := $(HOME)/Library/LaunchAgents/com.$(BINARY_NAME).plist
-LOG_FILE := $(HOME)/Library/Application Support/$(BINARY_NAME).log
+SERVICE_FILE:= $(HOME)/Library/LaunchAgents/com.$(BINARY_NAME).plist
+LOG_FILE    := $(HOME)/Library/Application Support/$(BINARY_NAME).log
 
 .PHONY: macos-install macos-start-service macos-stop-service \
-	macos-restart-service macos-print-service macos-watch-service
+        macos-restart-service macos-print-service macos-watch-service
 
 # Create launchd service file for macOS
 define LAUNCHD_SERVICE_FILE_CONTENT
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+"http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
     <key>Label</key>
@@ -58,21 +59,21 @@ export LAUNCHD_SERVICE_FILE_CONTENT
 
 macos-install:
 	@echo "Installing $(BINARY_NAME) for macOS..."
-	@mkdir -p $(INSTALL_DIR)
-	@sudo cp $(BIN_DIR)/$(BINARY_NAME) $(INSTALL_DIR)/$(BINARY_NAME)
-	@sudo chmod +x $(INSTALL_DIR)/$(BINARY_NAME)
+	mkdir -p $(INSTALL_DIR)
+	sudo cp $(BIN_DIR)/$(BINARY_NAME) $(INSTALL_DIR)/$(BINARY_NAME)
+	sudo chmod +x $(INSTALL_DIR)/$(BINARY_NAME)
 	@echo "$$LAUNCHD_SERVICE_FILE_CONTENT" > $(SERVICE_FILE)
 	@echo "$(BINARY_NAME) installed successfully"
 
 macos-start-service:
 	@echo "Starting $(BINARY_NAME) service..."
-	@launchctl load -w $(SERVICE_FILE)
-	@launchctl start com.$(BINARY_NAME)
+	launchctl load -w $(SERVICE_FILE)
+	launchctl start com.$(BINARY_NAME)
 
 macos-stop-service:
 	@echo "Stopping $(BINARY_NAME) service..."
-	@launchctl stop com.$(BINARY_NAME)
-	@launchctl unload -w $(SERVICE_FILE)
+	launchctl stop com.$(BINARY_NAME)
+	launchctl unload -w $(SERVICE_FILE)
 
 macos-restart-service:
 	@echo "Restarting $(BINARY_NAME) service..."
@@ -81,11 +82,11 @@ macos-restart-service:
 
 macos-print-service:
 	@echo "$(BINARY_NAME) service information:"
-	@launchctl print gui/$$(id -u)/com.$(BINARY_NAME) || echo "Service not loaded or running"
+	launchctl print gui/$(shell id -u)/com.$(BINARY_NAME) || echo "Service not loaded or running"
 
 macos-watch-service:
 	@echo "$(BINARY_NAME) watch server logs @ \"$(LOG_FILE)\":"
-	@if [ -f "$(LOG_FILE)" ]; then \
+	if [ -f "$(LOG_FILE)" ]; then \
 		echo "Watching logs... Press Ctrl+C to stop"; \
 		tail -f "$(LOG_FILE)"; \
 	else \
