@@ -63,6 +63,8 @@ func (anime *Anime) GetEpisodenStreams() (*AnimeData, error) {
 
 			if err := json.Unmarshal([]byte(text), anime.Data); err != nil {
 				slog.Error("Unmarshal data failed!", "err", err.Error())
+			} else {
+				slog.Debug("Successfully unmarshaled data", "entries_count", len(anime.Data.Entries))
 			}
 		}
 	})
@@ -74,6 +76,7 @@ func (anime *Anime) GetEpisodenStreams() (*AnimeData, error) {
 	c.OnError(func(r *colly.Response, e error) {
 		if e != nil {
 			err = e
+			slog.Error("HTTP request error", "error", e.Error())
 		}
 	})
 
@@ -95,14 +98,16 @@ func (anime *Anime) Download(entry AnimeDataEntry, path string) error {
 	c.OnHTML("iframe", func(h *colly.HTMLElement) {
 		src := h.Attr("src")
 		if src == "" {
+			slog.Warn("Empty iframe src found")
 			return
 		}
 
-		c := colly.NewCollector()
+		iframeCollector := colly.NewCollector()
 
-		c.OnHTML("video > source", func(h *colly.HTMLElement) {
+		iframeCollector.OnHTML("video > source", func(h *colly.HTMLElement) {
 			src := h.Attr("src")
 			if src == "" {
+				slog.Warn("Empty video source found")
 				return
 			}
 
@@ -111,26 +116,26 @@ func (anime *Anime) Download(entry AnimeDataEntry, path string) error {
 				return
 			}
 
-			slog.Debug("Got url from video source", "src", src)
+			slog.Debug("Got url from video source", "src", src, "path", path)
 			if err := anime.downloadSource(src, path); err != nil {
 				slog.Error("download src to dst failed", "err", err, "src", src, "dst", path)
 				_ = os.Remove(path)
 			}
 		})
 
-		c.OnRequest(func(r *colly.Request) {
+		iframeCollector.OnRequest(func(r *colly.Request) {
 			slog.Debug(fmt.Sprintf("Request to \"%s\"", r.URL))
 		})
 
-		c.OnError(func(r *colly.Response, err error) {
-			slog.Error("Colly error", "err", err.Error())
+		iframeCollector.OnError(func(r *colly.Response, err error) {
+			slog.Error("Iframe collector error", "error", err.Error())
 		})
 
-		if err := c.Visit(src); err != nil {
+		if err := iframeCollector.Visit(src); err != nil {
 			slog.Error(fmt.Sprintf("Visit \"%s\" failed!", src), "err", err.Error())
 		}
 
-		c.Wait()
+		iframeCollector.Wait()
 	})
 
 	c.OnRequest(func(r *colly.Request) {
@@ -140,6 +145,7 @@ func (anime *Anime) Download(entry AnimeDataEntry, path string) error {
 	c.OnError(func(r *colly.Response, e error) {
 		if e != nil {
 			err = e
+			slog.Error("Main collector error", "error", e.Error())
 		}
 	})
 
@@ -158,19 +164,27 @@ func (anime *Anime) downloadSource(src, dst string) error {
 		return nil
 	}
 
+	slog.Debug("Starting download", "src", src, "dst", dst)
 	response, err := http.Get(src)
 	if err != nil {
+		slog.Error("HTTP GET failed", "src", src, "error", err.Error())
 		return err
 	}
 	defer response.Body.Close()
 
 	file, err := os.Create(dst)
 	if err != nil {
+		slog.Error("Failed to create file", "dst", dst, "error", err.Error())
 		return err
 	}
+	defer file.Close()
 
 	n, err := io.Copy(bufio.NewWriter(file), response.Body)
-	slog.Debug("io.Copy", "dst", dst, "written", n, "err", err)
+	slog.Debug("io.Copy completed", "dst", dst, "written", n, "err", err)
+
+	if err != nil {
+		slog.Error("Copy failed", "dst", dst, "error", err.Error())
+	}
 
 	return err
 }

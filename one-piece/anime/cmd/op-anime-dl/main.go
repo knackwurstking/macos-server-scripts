@@ -11,6 +11,7 @@ import (
 
 	"op-anime-dl/internal/anime"
 
+	"github.com/gocolly/colly/v2"
 	"github.com/lmittmann/tint"
 )
 
@@ -27,10 +28,11 @@ func main() {
 
 	for true {
 		slog.Debug("Get anime list.", "url", a.GetUrl(anime.PathEpisodenStreams))
-		_, err := a.GetEpisodenStreams()
+		data, err := a.GetEpisodenStreams()
 		if err != nil {
 			slog.Error("Get anime list failed!", "err", err.Error())
 		} else {
+			slog.Debug("Got anime list with entries", "count", len(data.Entries))
 			iterAnimeList()
 		}
 
@@ -55,7 +57,7 @@ func iterAnimeList() {
 			entry.Number, entry.Name, strings.ToUpper(entry.LangSub))
 		dirName := fmt.Sprintf("%03d %s", a.Data.Arcs.GetIndex(arc.ID)+1, arc.Name)
 
-		//slog.Debug("Generate file name", "dirName", dirName, "fileName", fileName)
+		slog.Debug("Generate file name", "dirName", dirName, "fileName", fileName, "entryNumber", entry.Number)
 
 		mkdirAll(dirName)
 		path := filepath.Join(c.Download.Dst, dirName, fileName)
@@ -82,33 +84,94 @@ func mkdirAll(dirName string) {
 	path := filepath.Join(c.Download.Dst, dirName)
 	_, err := os.Stat(path)
 	if err != nil {
-		slog.Debug("Create directories", "path", path)
+		slog.Debug("Create directories", "path", path, "dirName", dirName)
 		err = os.MkdirAll(path, os.ModeDir|os.ModePerm)
 		if err != nil {
-			panic(err)
+			slog.Error("Failed to create directory", "path", path, "err", err.Error())
+			// Don't panic - just log and continue execution
+			return
 		}
 	}
 }
 
 func downloadEntry(path string, entry anime.AnimeDataEntry) {
-	if err := a.Download(entry, path); err != nil {
-		slog.Error("Download error!", "err", err.Error())
+	// Create a new collector for each download to avoid resource leaks
+	collector := colly.NewCollector()
+
+	// Set up collector for download process
+	collector.OnHTML("iframe", func(h *colly.HTMLElement) {
+		src := h.Attr("src")
+		if src == "" {
+			return
+		}
+
+		// Create nested collector for iframe content
+		iframeCollector := colly.NewCollector()
+
+		iframeCollector.OnHTML("video > source", func(h *colly.HTMLElement) {
+			src := h.Attr("src")
+			if src == "" {
+				return
+			}
+
+			if h.Attr("type") != "video/mp4" {
+				slog.Warn("HTML tag <source has not type \"video/mp4\" attribute")
+				return
+			}
+
+			slog.Debug("Got url from video source", "src", src, "entryName", entry.Name)
+
+			// Use the direct download method from anime package
+			err := a.Download(entry, path)
+			if err != nil {
+				slog.Error("download src to dst failed", "err", err, "src", src, "dst", path)
+				_ = os.Remove(path)
+			}
+		})
+
+		iframeCollector.OnRequest(func(r *colly.Request) {
+			slog.Debug(fmt.Sprintf("Request to \"%s\"", r.URL))
+		})
+
+		iframeCollector.OnError(func(r *colly.Response, err error) {
+			slog.Error("Colly error", "err", err.Error())
+		})
+
+		if err := iframeCollector.Visit(src); err != nil {
+			slog.Error(fmt.Sprintf("Visit \"%s\" failed!", src), "err", err.Error())
+		}
+
+		iframeCollector.Wait()
+	})
+
+	collector.OnRequest(func(r *colly.Request) {
+		slog.Debug(fmt.Sprintf("Request to \"%s\"", r.URL))
+	})
+
+	collector.OnError(func(r *colly.Response, e error) {
+		slog.Error("Main collector error", "err", e.Error())
+	})
+
+	if err := collector.Visit(entry.Href); err != nil {
+		slog.Error("Download visit failed", "err", err.Error())
 	}
+
+	collector.Wait()
 }
 
 func sleep() {
 	now := time.Now()
 
-	var day int
-	if now.Hour() < c.Update.Hour {
-		day = now.Day()
-	} else {
-		day = now.Day() + 1
-	}
-	next := time.Date(now.Year(), now.Month(), day, c.Update.Hour, 0, 0, 0, time.Local)
+	// Calculate next update time properly
+	nextUpdate := time.Date(now.Year(), now.Month(), now.Day(), c.Update.Hour, 0, 0, 0, time.Local)
 
-	duration := next.Sub(now)
-	slog.Debug("Sleep until next update day.", "duration", duration)
+	// If it's already past the update hour today, schedule for tomorrow
+	if now.Hour() >= c.Update.Hour {
+		nextUpdate = nextUpdate.AddDate(0, 0, 1)
+	}
+
+	duration := nextUpdate.Sub(now)
+	slog.Debug("Sleep until next update day.", "duration", duration, "next_update", nextUpdate, "current_time", now)
 
 	time.Sleep(duration)
 
