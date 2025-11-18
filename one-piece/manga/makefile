@@ -15,7 +15,7 @@ init:
 	go mod tidy -v
 
 build:
-	go build -v -o $(BIN_DIR)/$(BINARY_NAME) ./cmd/op-anime-dl
+	go build -v -o $(BIN_DIR)/$(BINARY_NAME) ./cmd/op-manga-dl
 
 # Create launchd service file for macOS
 define LAUNCHD_SERVICE_FILE_CONTENT
