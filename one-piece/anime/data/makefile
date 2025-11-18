@@ -1,8 +1,6 @@
 # TODO: Install scripts for macos
 BINARY_NAME := op-anime-dl
 
-EXTENSION_TAGS := stats,ip,journal,opmanga,pgpress
-
 # Directories and paths
 BIN_DIR := ./bin
 INSTALL_DIR := /usr/local/bin
