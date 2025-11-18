@@ -4,10 +4,18 @@ BINARY_NAME := op-manga-dl
 BIN_DIR     := ./bin
 INSTALL_DIR := /usr/local/bin
 SERVICE_FILE:= $(HOME)/Library/LaunchAgents/com.$(BINARY_NAME).plist
-LOG_FILE    := $(HOME)/Library/Application Support/$(BINARY_NAME).log
+LOG_FILE    := $(HOME)/Library/Application Support/$(BINARY_NAME)/$(BINARY_NAME).log
 
-.PHONY: macos-install macos-start-service macos-stop-service \
+.PHONY: all init build macos-install macos-start-service macos-stop-service \
         macos-restart-service macos-print-service macos-watch-service
+
+all: init build
+
+init:
+	go mod tidy -v
+
+build:
+	go build -v -o $(BIN_DIR)/$(BINARY_NAME) ./cmd/op-anime-dl
 
 # Create launchd service file for macOS
 define LAUNCHD_SERVICE_FILE_CONTENT
@@ -17,11 +25,11 @@ define LAUNCHD_SERVICE_FILE_CONTENT
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>$(BINARY_NAME)</string>
+    <string>com.$(BINARY_NAME)</string>
 
     <key>ProgramArguments</key>
     <array>
-        <string>$(BIN_DIR)/$(BINARY_NAME)</string>
+        <string>$(INSTALL_DIR)/$(BINARY_NAME)</string>
         <string>-debug</string>
         <string>-limit</string>
         <string>2</string>
@@ -29,10 +37,9 @@ define LAUNCHD_SERVICE_FILE_CONTENT
         <string>30</string>
         <string>-long-delay</string>
         <string>180</string>
+        <string>-dst</string>
+        <string>/Volumes/NAS/Videos/One Piece/Manga</string>
     </array>
-
-    <key>WorkingDirectory</key>
-    <string>$(BIN_DIR)</string>
 
     <key>RunAtLoad</key>
     <true/>
@@ -62,7 +69,7 @@ macos-install:
 	mkdir -p $(INSTALL_DIR)
 	sudo cp $(BIN_DIR)/$(BINARY_NAME) $(INSTALL_DIR)/$(BINARY_NAME)
 	sudo chmod +x $(INSTALL_DIR)/$(BINARY_NAME)
-	@echo "$$LAUNCHD_SERVICE_FILE_CONTENT" > $(SERVICE_FILE)
+	echo "$$LAUNCHD_SERVICE_FILE_CONTENT" > $(SERVICE_FILE)
 	@echo "$(BINARY_NAME) installed successfully"
 
 macos-start-service:
@@ -72,12 +79,12 @@ macos-start-service:
 
 macos-stop-service:
 	@echo "Stopping $(BINARY_NAME) service..."
-	launchctl stop com.$(BINARY_NAME)
+	launchctl stop com.$(BINARY_NAME) || exit 0
 	launchctl unload -w $(SERVICE_FILE)
 
 macos-restart-service:
 	@echo "Restarting $(BINARY_NAME) service..."
-	make macos-stop-service
+	make macos-stop-service || exit 0
 	make macos-start-service
 
 macos-print-service:
