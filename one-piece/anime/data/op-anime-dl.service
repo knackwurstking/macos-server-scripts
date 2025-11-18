@@ -1,0 +1,10 @@
+[Unit]
+Description=One Piece Anime Downloader
+After=network.target
+
+[Service]
+WorkingDirectory=/mnt/media/Data/.src/scripts/one-piece/anime/
+ExecStart=/mnt/media/Data/.src/scripts/one-piece/anime/op-anime-dl -debug -limit 2 -delay 60 -long-delay 180
+
+[Install]
+WantedBy=default.target
