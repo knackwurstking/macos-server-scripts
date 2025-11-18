@@ -1,4 +1,3 @@
-# TODO: Install scripts for macos
 BINARY_NAME := op-anime-dl
 
 # Directories and paths
