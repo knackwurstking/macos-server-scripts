@@ -20,8 +20,8 @@ const (
 type Path string
 
 type Anime struct {
-	Origin string `json:"origin"`
-	Data   *AnimeData  `json:"data"`
+	Origin string     `json:"origin"`
+	Data   *AnimeData `json:"data"`
 }
 
 func NewAnime(origin string) *Anime {
@@ -77,7 +77,7 @@ func (anime *Anime) GetEpisodenStreams() (*AnimeData, error) {
 		}
 	})
 
-    if err := c.Visit(anime.GetUrl(PathEpisodenStreams)); err != nil {
+	if err := c.Visit(anime.GetUrl(PathEpisodenStreams)); err != nil {
 		return anime.Data, err
 	}
 
@@ -93,37 +93,44 @@ func (anime *Anime) Download(entry AnimeDataEntry, path string) error {
 	)
 
 	c.OnHTML("iframe", func(h *colly.HTMLElement) {
-        src := h.Attr("src")
-        c := colly.NewCollector()
+		src := h.Attr("src")
+		if src == "" {
+			return
+		}
 
-        c.OnHTML("video > source", func(h *colly.HTMLElement) {
-            src := h.Attr("src")
+		c := colly.NewCollector()
 
-            if h.Attr("type") != "video/mp4" {
-                slog.Warn("HTML tag <source has not type \"video/mp4\" attribute")
-                return
-            }
+		c.OnHTML("video > source", func(h *colly.HTMLElement) {
+			src := h.Attr("src")
+			if src == "" {
+				return
+			}
 
-            slog.Debug("Got url from video source", "src", src)
-            if err := anime.downloadSource(src, path); err != nil {
-                slog.Error("download src to dst failed", "err", err, "src", src, "dst", path)
-                _ = os.Remove(path)
-            }
-        })
+			if h.Attr("type") != "video/mp4" {
+				slog.Warn("HTML tag <source has not type \"video/mp4\" attribute")
+				return
+			}
 
-        c.OnRequest(func(r *colly.Request) {
-            slog.Debug(fmt.Sprintf("Request to \"%s\"", r.URL))
-        })
+			slog.Debug("Got url from video source", "src", src)
+			if err := anime.downloadSource(src, path); err != nil {
+				slog.Error("download src to dst failed", "err", err, "src", src, "dst", path)
+				_ = os.Remove(path)
+			}
+		})
 
-        c.OnError(func(r *colly.Response, err error) {
-            slog.Error("Colly error", "err", err.Error())
-        })
+		c.OnRequest(func(r *colly.Request) {
+			slog.Debug(fmt.Sprintf("Request to \"%s\"", r.URL))
+		})
 
-        if err := c.Visit(src); err != nil {
-            slog.Error(fmt.Sprintf("Visit \"%s\" failed!", src), "err", err.Error())
-        }
+		c.OnError(func(r *colly.Response, err error) {
+			slog.Error("Colly error", "err", err.Error())
+		})
 
-        c.Wait()
+		if err := c.Visit(src); err != nil {
+			slog.Error(fmt.Sprintf("Visit \"%s\" failed!", src), "err", err.Error())
+		}
+
+		c.Wait()
 	})
 
 	c.OnRequest(func(r *colly.Request) {
@@ -136,47 +143,47 @@ func (anime *Anime) Download(entry AnimeDataEntry, path string) error {
 		}
 	})
 
-    if err := c.Visit(entry.Href); err != nil {
+	if err := c.Visit(entry.Href); err != nil {
 		return err
 	}
 
 	c.Wait()
 
-    return err
+	return err
 }
 
 func (anime *Anime) downloadSource(src, dst string) error {
-    if _, err := os.Stat(dst); err == nil {
-        slog.Warn("file already exists", "dst", dst)
-        return nil
-    }
+	if _, err := os.Stat(dst); err == nil {
+		slog.Warn("file already exists", "dst", dst)
+		return nil
+	}
 
-    response, err := http.Get(src)
-    if err != nil {
-        return err
-    }
-    defer response.Body.Close()
+	response, err := http.Get(src)
+	if err != nil {
+		return err
+	}
+	defer response.Body.Close()
 
-    file, err := os.Create(dst)
-    if err != nil {
-        return err
-    }
+	file, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
 
-    n, err := io.Copy(bufio.NewWriter(file), response.Body)
-    slog.Debug("io.Copy", "dst", dst, "written", n, "err", err)
+	n, err := io.Copy(bufio.NewWriter(file), response.Body)
+	slog.Debug("io.Copy", "dst", dst, "written", n, "err", err)
 
-    return err
+	return err
 }
 
 type AnimeData struct {
-	Arcs     AnimeDataArcs     `json:"arcs"`
-	Entries  []AnimeDataEntry  `json:"entries"`
+	Arcs    AnimeDataArcs    `json:"arcs"`
+	Entries []AnimeDataEntry `json:"entries"`
 }
 
 func NewAnimeData() *AnimeData {
 	return &AnimeData{
-		Arcs:     make([]AnimeDataArc, 0),
-		Entries:  make([]AnimeDataEntry, 0),
+		Arcs:    make([]AnimeDataArc, 0),
+		Entries: make([]AnimeDataEntry, 0),
 	}
 }
 
@@ -200,7 +207,7 @@ func (arcs AnimeDataArcs) GetIndex(id int) int {
 		}
 	}
 
-    panic(fmt.Sprintf("GetOrder failed for id \"%d\"", id))
+	panic(fmt.Sprintf("GetOrder failed for id \"%d\"", id))
 }
 
 type AnimeDataArc struct {

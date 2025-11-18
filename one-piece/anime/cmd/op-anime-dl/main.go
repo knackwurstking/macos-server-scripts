@@ -15,75 +15,72 @@ import (
 )
 
 var (
-    a *anime.Anime
-    c *Config
+	a *anime.Anime
+	c *Config
 )
 
 func main() {
 	c = NewConfig()
 	parseFlags()
 
-    a = anime.NewAnime("https://onepiece-tube.com")
+	a = anime.NewAnime("https://onepiece-tube.com")
 
 	for true {
 		slog.Debug("Get anime list.", "url", a.GetUrl(anime.PathEpisodenStreams))
-        _, err := a.GetEpisodenStreams()
+		_, err := a.GetEpisodenStreams()
 		if err != nil {
 			slog.Error("Get anime list failed!", "err", err.Error())
 		} else {
 			iterAnimeList()
 		}
 
-        sleep()
+		sleep()
 	}
 }
 
 func iterAnimeList() {
-    var (
-        currentDownloads = 0
-    )
+	var (
+		currentDownloadRequests = 0
+	)
 
 	for _, entry := range a.Data.Entries {
-        if entry.Href == "" {
-            slog.Debug("Skip entry (missing href attribute)", "entry.Number", entry.Number)
-            continue
-        }
+		if entry.Href == "" {
+			slog.Debug("Skip entry (missing href attribute)", "entry.Number", entry.Number)
+			continue
+		}
 
-        arc := a.Data.Arcs.Get(entry.ArcID)
+		arc := a.Data.Arcs.Get(entry.ArcID)
 
 		fileName := fmt.Sprintf("%04d %s (%s_SUB).mp4",
 			entry.Number, entry.Name, strings.ToUpper(entry.LangSub))
-        dirName := fmt.Sprintf("%03d %s", a.Data.Arcs.GetIndex(arc.ID) + 1, arc.Name)
+		dirName := fmt.Sprintf("%03d %s", a.Data.Arcs.GetIndex(arc.ID)+1, arc.Name)
 
 		//slog.Debug("Generate file name", "dirName", dirName, "fileName", fileName)
 
-        path := filepath.Join(c.Download.Dst, dirName, fileName)
-        _, err := os.Stat(path)
-        if err != nil {
-            mkdirAll(dirName)
-        } else {
-            continue
-        }
+		mkdirAll(dirName)
+		path := filepath.Join(c.Download.Dst, dirName, fileName)
+		if _, err := os.Stat(path); err == nil {
+			continue
+		}
 
-        currentDownloads += 1
-        downloadEntry(path, entry)
+		currentDownloadRequests += 1
+		downloadEntry(path, entry)
 
-        duration := time.Minute * time.Duration(c.Download.Delay)
-        if currentDownloads >= c.Download.LimitPerDay {
-            duration = time.Minute * time.Duration(c.Download.LongDelay)
-            currentDownloads = 0
-        }
+		duration := time.Minute * time.Duration(c.Download.Delay)
+		if currentDownloadRequests >= c.Download.LimitPerDay {
+			duration = time.Minute * time.Duration(c.Download.LongDelay)
+			currentDownloadRequests = 0
+		}
 
-        slog.Debug("Download delay", "duration", duration, "currentDownloads", currentDownloads)
-        time.Sleep(duration)
+		slog.Debug("Download delay", "duration", duration,
+			"current_download_requests", currentDownloadRequests)
+		time.Sleep(duration)
 	}
 }
 
-
-
 func mkdirAll(dirName string) {
 	path := filepath.Join(c.Download.Dst, dirName)
-    _, err := os.Stat(path)
+	_, err := os.Stat(path)
 	if err != nil {
 		slog.Debug("Create directories", "path", path)
 		err = os.MkdirAll(path, os.ModeDir|os.ModePerm)
@@ -94,32 +91,29 @@ func mkdirAll(dirName string) {
 }
 
 func downloadEntry(path string, entry anime.AnimeDataEntry) {
-    if err := a.Download(entry, path); err != nil {
-        slog.Error("Download error!", "err", err.Error())
-    }
+	if err := a.Download(entry, path); err != nil {
+		slog.Error("Download error!", "err", err.Error())
+	}
 }
 
 func sleep() {
-	for true {
-		now := time.Now()
+	now := time.Now()
 
-		var day int
-		if now.Hour() < c.Update.Hour {
-			day = now.Day()
-		} else {
-			day = now.Day() + 1
-		}
-		next := time.Date(now.Year(), now.Month(), day, c.Update.Hour, 0, 0, 0, time.Local)
+	var day int
+	if now.Hour() < c.Update.Hour {
+		day = now.Day()
+	} else {
+		day = now.Day() + 1
+	}
+	next := time.Date(now.Year(), now.Month(), day, c.Update.Hour, 0, 0, 0, time.Local)
 
-		duration := next.Sub(now)
-		slog.Debug("Sleep until next update day.", "duration", duration)
+	duration := next.Sub(now)
+	slog.Debug("Sleep until next update day.", "duration", duration)
 
-		time.Sleep(duration)
+	time.Sleep(duration)
 
-		if time.Now().Weekday() == c.Update.Weekday {
-			slog.Debug("Running new update now...")
-			break
-		}
+	if time.Now().Weekday() == c.Update.Weekday {
+		slog.Debug("Running new update now...")
 	}
 }
 
@@ -170,14 +164,14 @@ func parseFlags() {
 		c.Update.Hour = *hour
 	}
 
-    options := &tint.Options{
-        TimeFormat: time.DateTime,
-		Level: slog.LevelInfo,
-    }
-
-	if c.Debug {
-        options.Level = slog.LevelDebug
+	options := &tint.Options{
+		TimeFormat: time.DateTime,
+		Level:      slog.LevelInfo,
 	}
 
-    slog.SetDefault(slog.New(tint.NewHandler(os.Stderr, options)))
+	if c.Debug {
+		options.Level = slog.LevelDebug
+	}
+
+	slog.SetDefault(slog.New(tint.NewHandler(os.Stderr, options)))
 }

@@ -6,6 +6,11 @@ INSTALL_DIR := /usr/local/bin
 SERVICE_FILE:= $(HOME)/Library/LaunchAgents/com.$(BINARY_NAME).plist
 LOG_FILE    := $(HOME)/Library/Application Support/$(BINARY_NAME)/$(BINARY_NAME).log
 
+LIMIT := 2
+DELAY := 60
+LONG_DELAY := 180
+DST := /Volumes/NAS/Videos/One Piece/Anime
+
 .PHONY: all init build macos-install macos-start-service macos-stop-service \
         macos-restart-service macos-print-service macos-watch-service
 
@@ -32,13 +37,13 @@ define LAUNCHD_SERVICE_FILE_CONTENT
         <string>$(INSTALL_DIR)/$(BINARY_NAME)</string>
         <string>-debug</string>
         <string>-limit</string>
-        <string>2</string>
+        <string>$(LIMIT)</string>
         <string>-delay</string>
-        <string>60</string>
+        <string>$(DELAY)</string>
         <string>-long-delay</string>
-        <string>180</string>
+        <string>$(LONG_DELAY)</string>
         <string>-dst</string>
-        <string>/Volumes/NAS/Videos/One Piece/Anime</string>
+        <string>$(DST)</string>
     </array>
 
     <key>RunAtLoad</key>
