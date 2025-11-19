@@ -169,12 +169,6 @@ func (anime *Anime) Download(entry AnimeDataEntry, path string) error {
 
 	c.Wait()
 
-	if err == nil {
-		slog.Info("Download finished successfully", "entry_name", entry.Name, "entry_number", entry.Number, "path", path)
-	} else {
-		slog.Info("Download finished with error", "entry_name", entry.Name, "entry_number", entry.Number, "path", path, "err", err.Error())
-	}
-
 	return err
 }
 
