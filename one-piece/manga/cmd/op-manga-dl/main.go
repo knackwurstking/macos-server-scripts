@@ -31,10 +31,7 @@ func main() {
 			slog.Error("Error in download cycle", "err", err.Error())
 		}
 
-		err = sleep()
-		if err != nil {
-			slog.Error("Error in sleep cycle", "err", err.Error())
-		}
+		sleep()
 	}
 }
 
@@ -43,9 +40,7 @@ func downloadAllChapters() error {
 
 	ml, err := scraper.ParseMangaList()
 	if err != nil {
-		slog.Error("Fetch & parse manga list",
-			"err", err.Error())
-		return err
+		return fmt.Errorf("fetch & parse manga llist: %v", err)
 	}
 
 	currentDownloads := 0
@@ -86,7 +81,7 @@ func downloadAllChapters() error {
 		currentDownloads += 1
 		err = downloadChapter(chapter, path)
 		if err != nil {
-			slog.Error("Failed to download chapter", "chapter", chapter.Name, "err", err.Error())
+			slog.Error("Failed to download chapter", "name", chapter.Name, "error", err)
 			continue
 		}
 
@@ -159,30 +154,24 @@ func downloadChapter(chapter scraper.MangaList_Chapter, path string) error {
 	return nil
 }
 
-func sleep() error {
-	for {
-		now := time.Now()
+func sleep() {
+	now := time.Now()
 
-		var day int
-		if now.Hour() < c.Update.Hour {
-			day = now.Day()
-		} else {
-			day = now.Day() + 1
-		}
-		next := time.Date(
-			now.Year(), now.Month(), day,
-			c.Update.Hour, 0, 0, 0, time.Local,
-		)
+	// Calculate next update time properly
+	nextUpdate := time.Date(now.Year(), now.Month(), now.Day(), c.Update.Hour, 0, 0, 0, time.Local)
 
-		duration := next.Sub(now)
-		slog.Debug("Sleep until next update day", "duration", duration)
+	// If it's already past the update hour today, schedule for tomorrow
+	if now.Hour() >= c.Update.Hour {
+		nextUpdate = nextUpdate.AddDate(0, 0, 1)
+	}
 
-		time.Sleep(duration)
+	duration := nextUpdate.Sub(now)
+	slog.Debug("Sleep until next update day.", "duration", duration, "next_update", nextUpdate, "current_time", now)
 
-		if time.Now().Weekday() == c.Update.Weekday {
-			slog.Debug("Running new update now...")
-			return nil
-		}
+	time.Sleep(duration)
+
+	if time.Now().Weekday() == c.Update.Weekday {
+		slog.Debug("Running new update now...")
 	}
 }
 
