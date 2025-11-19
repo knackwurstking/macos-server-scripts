@@ -46,7 +46,7 @@ func main() {
 }
 
 func downloadAllChapters() error {
-	slog.Debug("Download all chapters possible")
+	slog.Info("Starting download cycle")
 
 	ml, err := scraper.ParseMangaList()
 	if err != nil {
@@ -108,6 +108,7 @@ func downloadAllChapters() error {
 		time.Sleep(duration)
 	}
 
+	slog.Info("Finished download cycle")
 	return nil
 }
 
@@ -161,6 +162,7 @@ func downloadChapter(chapter scraper.MangaList_Chapter, path string) error {
 		return err
 	}
 
+	slog.Info(fmt.Sprintf("Finished downloading chapter \"%s\"", chapter.Name))
 	return nil
 }
 
@@ -176,12 +178,12 @@ func sleep() {
 	}
 
 	duration := nextUpdate.Sub(now)
-	slog.Debug("Sleep until next update day.", "duration", duration, "next_update", nextUpdate, "current_time", now)
+	slog.Info("Sleeping until next update day.", "duration", duration, "next_update", nextUpdate, "current_time", now)
 
 	time.Sleep(duration)
 
 	if time.Now().Weekday() == c.Update.Weekday {
-		slog.Debug("Running new update now...")
+		slog.Info("Running new update now...")
 	}
 }
 
