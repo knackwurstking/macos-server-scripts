@@ -16,6 +16,10 @@ import (
 	"github.com/lmittmann/tint"
 )
 
+const (
+	ErrCodeMagickNotAvailable int = 1
+)
+
 var (
 	c *Config
 )
@@ -23,6 +27,12 @@ var (
 func main() {
 	c = NewConfig()
 	parseFlags()
+
+	// Check if ImageMagick is available
+	if err := utils.CheckImageMagick(); err != nil {
+		slog.Error("ImageMagick not available", "err", err.Error())
+		os.Exit(ErrCodeMagickNotAvailable)
+	}
 
 	// Continuous loop with proper error handling
 	for {

@@ -32,12 +32,6 @@ func ConvertImagesToPDF(path string, images ...string) error {
 	slog.Debug("Convert images to pdf", "dst", path)
 	images = append(images, "-quality", "100", "-density", "150", path+".pdf")
 
-	// Check if ImageMagick is available
-	if err := checkImageMagick(); err != nil {
-		slog.Error("ImageMagick not available", "err", err.Error())
-		return err
-	}
-
 	var stderr bytes.Buffer
 	cmd := exec.Command("magick", images...)
 	cmd.Stderr = &stderr
@@ -52,8 +46,8 @@ func ConvertImagesToPDF(path string, images ...string) error {
 	return nil
 }
 
-// checkImageMagick verifies that ImageMagick is installed and available
-func checkImageMagick() error {
+// CheckImageMagick verifies that ImageMagick is installed and available
+func CheckImageMagick() error {
 	// Try to execute magick command to check if it's available
 	cmd := exec.Command("magick", "-version")
 	output, err := cmd.CombinedOutput()
