@@ -11,7 +11,7 @@ DELAY := 60
 LONG_DELAY := 180
 DST := /Volumes/NAS/Videos/One Piece/Manga
 
-.PHONY: all init build macos-install macos-start-service macos-stop-service \
+.PHONY: all init build clean macos-install macos-start-service macos-stop-service \
         macos-restart-service macos-print-service macos-watch-service
 
 all: init build
@@ -21,6 +21,9 @@ init:
 
 build:
 	go build -v -o $(BIN_DIR)/$(BINARY_NAME) ./cmd/op-manga-dl
+
+clean:
+	rm -rf $(BIN_DIR)
 
 # Create launchd service file for macOS
 define LAUNCHD_SERVICE_FILE_CONTENT
