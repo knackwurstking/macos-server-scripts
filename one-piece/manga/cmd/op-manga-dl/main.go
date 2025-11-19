@@ -24,23 +24,31 @@ func main() {
 	c = NewConfig()
 	parseFlags()
 
-	for true {
-		downloadAllChapters()
-		sleep()
+	// Continuous loop with proper error handling
+	for {
+		err := downloadAllChapters()
+		if err != nil {
+			slog.Error("Error in download cycle", "err", err.Error())
+		}
+
+		err = sleep()
+		if err != nil {
+			slog.Error("Error in sleep cycle", "err", err.Error())
+		}
 	}
 }
 
-func downloadAllChapters() {
+func downloadAllChapters() error {
 	slog.Debug("Download all chapters possible")
 
 	ml, err := scraper.ParseMangaList()
 	if err != nil {
 		slog.Error("Fetch & parse manga list",
-            "err", err.Error())
-		return
+			"err", err.Error())
+		return err
 	}
 
-    currentDownloads := 0
+	currentDownloads := 0
 	for _, chapter := range ml.Chapters {
 		if chapter.Pages == 0 {
 			continue
@@ -52,93 +60,107 @@ func downloadAllChapters() {
 				"Arc for %s with the id %d not found! (This should never happen)",
 				chapter.Name, chapter.ArcId,
 			))
+			continue
 		}
 
 		path := filepath.Join(
-            c.Download.Dst,
+			c.Download.Dst,
 			fmt.Sprintf("%03d %s", len(ml.Arcs)-i, arc.Name),
 			fmt.Sprintf("%04d %s", chapter.Number, chapter.Name),
 		)
 
 		_, err := os.Stat(path + ".pdf")
 		if err == nil {
-            // File (pdf) already exists, continue to next chapter
-            continue
-        }
+			// File (pdf) already exists, continue to next chapter
+			continue
+		}
 
-        // Make directory where the pages will be stored
-        // (ignore errors if already exists)
-        _ = os.MkdirAll(path, 0755)
+		// Make directory where the pages will be stored
+		// (ignore errors if already exists)
+		err = os.MkdirAll(path, 0755)
+		if err != nil {
+			slog.Error("Failed to create directory", "path", path, "err", err.Error())
+			continue
+		}
 
-        currentDownloads += 1
-        downloadChapter(chapter, path)
+		currentDownloads += 1
+		err = downloadChapter(chapter, path)
+		if err != nil {
+			slog.Error("Failed to download chapter", "chapter", chapter.Name, "err", err.Error())
+			continue
+		}
 
-        // Handle the short and long download delay based on limit
-        duration := time.Minute * time.Duration(c.Download.Delay)
-        if currentDownloads >= c.Download.LimitPerDay {
-            duration = time.Minute * time.Duration(c.Download.LongDelay)
-            currentDownloads = 0
-        }
+		// Handle the short and long download delay based on limit
+		duration := time.Minute * time.Duration(c.Download.Delay)
+		if currentDownloads >= c.Download.LimitPerDay {
+			duration = time.Minute * time.Duration(c.Download.LongDelay)
+			currentDownloads = 0
+		}
 
-        slog.Debug("Handle the download delay",
-            "duration", duration,
-            "currentDownloads", currentDownloads)
-        time.Sleep(duration)
+		slog.Debug("Handle the download delay",
+			"duration", duration,
+			"currentDownloads", currentDownloads)
+		time.Sleep(duration)
 	}
+
+	return nil
 }
 
-func downloadChapter(chapter scraper.MangaList_Chapter, path string) {
-    slog.Info(fmt.Sprintf("Download chapter \"%s\" with %d pages.",
-        chapter.Name, chapter.Pages))
+func downloadChapter(chapter scraper.MangaList_Chapter, path string) error {
+	slog.Info(fmt.Sprintf("Download chapter \"%s\" with %d pages.",
+		chapter.Name, chapter.Pages))
 
 	// download jpg/png from dURL - scrape the same script section like before
 	chapterData, err := scraper.ParseChapter(chapter.Href)
 	if err != nil {
 		slog.Error("Parsing chapter failed!",
-            "chapter.Href", chapter.Href,
-            "err", err.Error())
-		return
+			"chapter.Href", chapter.Href,
+			"err", err.Error())
+		return err
 	}
 
 	pages := make([]string, len(chapterData.Chapter.Pages))
 	for i, page := range chapterData.Chapter.Pages {
 		slog.Debug(fmt.Sprintf("Download page nr %d", i+1),
-            "page.Url", page.Url)
+			"page.Url", page.Url)
 
 		r, err := http.Get(page.Url)
 		if err != nil {
 			slog.Error("Downloading page failed!",
-                "page", i+1, "err", err.Error())
-			return
+				"page", i+1, "err", err.Error())
+			return err
 		}
 		data, err := io.ReadAll(r.Body)
 		if err != nil {
 			slog.Error("Read all body data failed!",
-                "page", i+1, "err", err.Error())
-			return
+				"page", i+1, "err", err.Error())
+			return err
 		}
 		if len(data) == 0 {
 			slog.Error("No data!", "page", i+1)
-			return
+			return fmt.Errorf("no data received for page %d", i+1)
 		}
 		e, _ := utils.GetExtension(page.Type)
 		p := filepath.Join(path, fmt.Sprintf("%02d.%s", i+1, e))
 		err = os.WriteFile(p, data, 0644)
 		if err != nil {
 			slog.Error(fmt.Sprintf("Write file \"%s\" failed!", p),
-                "err", err.Error())
-			return
+				"err", err.Error())
+			return err
 		}
 		pages[i] = p
 	}
 
 	if err := utils.ConvertImagesToPDF(path, pages...); err != nil {
 		slog.Error("Convert pages to pdf failed!", "err", err.Error())
+		return err
 	}
+
+	return nil
 }
 
-func sleep() {
-	for true {
+func sleep() error {
+	for {
 		now := time.Now()
 
 		var day int
@@ -148,9 +170,9 @@ func sleep() {
 			day = now.Day() + 1
 		}
 		next := time.Date(
-            now.Year(), now.Month(), day,
-            c.Update.Hour, 0, 0, 0, time.Local,
-        )
+			now.Year(), now.Month(), day,
+			c.Update.Hour, 0, 0, 0, time.Local,
+		)
 
 		duration := next.Sub(now)
 		slog.Debug("Sleep until next update day", "duration", duration)
@@ -159,7 +181,7 @@ func sleep() {
 
 		if time.Now().Weekday() == c.Update.Weekday {
 			slog.Debug("Running new update now...")
-			break
+			return nil
 		}
 	}
 }
@@ -211,14 +233,14 @@ func parseFlags() {
 		c.Update.Hour = *hour
 	}
 
-    options := &tint.Options{
-        TimeFormat: time.DateTime,
-		Level: slog.LevelInfo,
-    }
-
-	if c.Debug {
-        options.Level = slog.LevelDebug
+	options := &tint.Options{
+		TimeFormat: time.DateTime,
+		Level:      slog.LevelInfo,
 	}
 
-    slog.SetDefault(slog.New(tint.NewHandler(os.Stderr, options)))
+	if c.Debug {
+		options.Level = slog.LevelDebug
+	}
+
+	slog.SetDefault(slog.New(tint.NewHandler(os.Stderr, options)))
 }
