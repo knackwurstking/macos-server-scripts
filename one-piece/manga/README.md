@@ -22,10 +22,12 @@ This will install the binary to `/usr/local/bin` and set up a launchd service.
 
 The application supports various flags:
 - `-debug`: Enable debug logging
-- `-limit`: Number of manga to download per run (default: 2)
-- `-delay`: Delay between downloads in seconds (default: 60)
-- `-long-delay`: Delay between manga series in seconds (default: 180)
-- `-dst`: Destination directory for downloaded manga
+- `-limit`: Number of manga to download per run (default: 5)
+- `-delay`: Delay between downloads in minutes (default: 30)
+- `-long-delay`: Delay between manga series in minutes (default: 720)
+- `-dst`: Destination directory for downloaded manga (default: $HOME/OnePieceManga)
+- `-update-on-day`: Weekday (0-6) for update the manga list (default: 4 - Thursday)
+- `-update-hour`: Hour (0-23) for manga list update (default: 18)
 
 ## Service Management
 
