@@ -46,6 +46,8 @@ func (anime *Anime) GetEpisodenStreams() (*AnimeData, error) {
 		err error
 	)
 
+	slog.Info("Starting to fetch anime streams list")
+
 	c.OnHTML("script", func(h *colly.HTMLElement) {
 		var (
 			dataVar = "window.__data"
@@ -81,10 +83,17 @@ func (anime *Anime) GetEpisodenStreams() (*AnimeData, error) {
 	})
 
 	if err := c.Visit(anime.GetUrl(PathEpisodenStreams)); err != nil {
+		slog.Error("Failed to fetch anime streams list", "err", err.Error())
 		return anime.Data, err
 	}
 
 	c.Wait()
+
+	if err == nil {
+		slog.Info("Successfully fetched anime streams list", "entries_count", len(anime.Data.Entries))
+	} else {
+		slog.Info("Failed to fetch anime streams list", "err", err.Error())
+	}
 
 	return anime.Data, err
 }
@@ -94,6 +103,8 @@ func (anime *Anime) Download(entry AnimeDataEntry, path string) error {
 		c   = colly.NewCollector()
 		err error
 	)
+
+	slog.Info("Starting download", "entry_name", entry.Name, "entry_number", entry.Number, "path", path)
 
 	c.OnHTML("iframe", func(h *colly.HTMLElement) {
 		src := h.Attr("src")
@@ -120,6 +131,8 @@ func (anime *Anime) Download(entry AnimeDataEntry, path string) error {
 			if err := anime.downloadSource(src, path); err != nil {
 				slog.Error("download src to dst failed", "err", err, "src", src, "dst", path)
 				_ = os.Remove(path)
+			} else {
+				slog.Info("Download finished successfully", "entry_name", entry.Name, "entry_number", entry.Number, "path", path)
 			}
 		})
 
@@ -150,10 +163,17 @@ func (anime *Anime) Download(entry AnimeDataEntry, path string) error {
 	})
 
 	if err := c.Visit(entry.Href); err != nil {
+		slog.Error("Download visit failed", "entry_name", entry.Name, "entry_number", entry.Number, "err", err.Error())
 		return err
 	}
 
 	c.Wait()
+
+	if err == nil {
+		slog.Info("Download finished successfully", "entry_name", entry.Name, "entry_number", entry.Number, "path", path)
+	} else {
+		slog.Info("Download finished with error", "entry_name", entry.Name, "entry_number", entry.Number, "path", path, "err", err.Error())
+	}
 
 	return err
 }
@@ -164,7 +184,7 @@ func (anime *Anime) downloadSource(src, dst string) error {
 		return nil
 	}
 
-	slog.Debug("Starting download", "src", src, "dst", dst)
+	slog.Info("Starting download from source", "src", src, "dst", dst)
 	response, err := http.Get(src)
 	if err != nil {
 		slog.Error("HTTP GET failed", "src", src, "error", err.Error())
@@ -184,6 +204,8 @@ func (anime *Anime) downloadSource(src, dst string) error {
 
 	if err != nil {
 		slog.Error("Copy failed", "dst", dst, "error", err.Error())
+	} else {
+		slog.Info("Download completed successfully", "src", src, "dst", dst, "written", n)
 	}
 
 	return err

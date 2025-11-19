@@ -27,12 +27,12 @@ func main() {
 	a = anime.NewAnime("https://onepiece-tube.com")
 
 	for true {
-		slog.Debug("Get anime list.", "url", a.GetUrl(anime.PathEpisodenStreams))
+		slog.Info("Starting anime list fetch")
 		data, err := a.GetEpisodenStreams()
 		if err != nil {
 			slog.Error("Get anime list failed!", "err", err.Error())
 		} else {
-			slog.Debug("Got anime list with entries", "count", len(data.Entries))
+			slog.Info("Got anime list with entries", "count", len(data.Entries))
 			iterAnimeList()
 		}
 
@@ -74,7 +74,7 @@ func iterAnimeList() {
 			currentDownloadRequests = 0
 		}
 
-		slog.Debug("Download delay", "duration", duration,
+		slog.Info("Sleeping before next download", "duration", duration,
 			"current_download_requests", currentDownloadRequests)
 		time.Sleep(duration)
 	}
@@ -171,12 +171,12 @@ func sleep() {
 	}
 
 	duration := nextUpdate.Sub(now)
-	slog.Debug("Sleep until next update day.", "duration", duration, "next_update", nextUpdate, "current_time", now)
+	slog.Info("Sleeping until next update day", "duration", duration, "next_update", nextUpdate, "current_time", now)
 
 	time.Sleep(duration)
 
 	if time.Now().Weekday() == c.Update.Weekday {
-		slog.Debug("Running new update now...")
+		slog.Info("Running new update now...")
 	}
 }
 
