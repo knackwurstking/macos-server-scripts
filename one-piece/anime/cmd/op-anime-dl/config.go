@@ -34,7 +34,7 @@ func NewConfig() *Config {
 		Download: ConfigDownload{
 			Delay:       30,      // 20 min
 			LongDelay:   12 * 60, // 12 hours
-			Dst:         filepath.Join("data", "download"),
+			Dst:         filepath.Join(os.Getenv("HOME"), "OnePieceAnime"),
 			LimitPerDay: 5,
 		},
 	}

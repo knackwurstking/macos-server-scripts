@@ -22,12 +22,12 @@ This will install the binary to `/usr/local/bin` and set up a launchd service.
 
 The application supports various flags:
 - `-debug`: Enable debug logging
-- `-limit`: Number of anime to download per run (default: 2)
-- `-delay`: Delay between downloads in minutes (default: 60)
-- `-long-delay`: Delay between anime series in minutes (default: 180)
-- `-dst`: Destination directory for downloaded anime
+- `-limit`: Number of anime to download per run (default: 5)
+- `-delay`: Delay between downloads in minutes (default: 30)
+- `-long-delay`: Delay between anime series in minutes (default: 720)
+- `-dst`: Destination directory for downloaded anime (defaults: $HOME/OnePieceAnime)
 - `-update-on-day`: Weekday (0-6) for update the anime list (default: 0)
-- `-update-hour`: Hour (0-23) for anime list update (default: 0)
+- `-update-hour`: Hour (0-23) for anime list update (default: 18)
 
 ## Service Management
 
