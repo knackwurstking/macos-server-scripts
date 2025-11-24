@@ -1,2 +1,2 @@
-/data
-/letsencrypt
+*.log
+*.log.1
